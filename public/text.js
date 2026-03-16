@@ -66,7 +66,7 @@ function renderTextResults(results) {
 
       card.classList.toggle("is-error", result.status === "error");
       card.querySelector(".result-title").textContent = result.model;
-      card.querySelector(".result-meta").textContent = formatDuration(result.durationMs);
+      card.querySelector(".result-meta").textContent = formatMeta(result);
       applyNotice(notice, getTextNotice(result.model));
       body.textContent = result.status === "ok" ? result.output : `Error: ${result.error}`;
       return card;
@@ -102,6 +102,16 @@ function setPendingState(isPending, text) {
 
 function formatDuration(durationMs) {
   return `${(durationMs / 1000).toFixed(2)}s`;
+}
+
+function formatMeta(result) {
+  const parts = [formatDuration(result.durationMs)];
+
+  if (typeof result.temperatureUsed === "number") {
+    parts.push(`temp ${result.temperatureUsed.toFixed(2)}`);
+  }
+
+  return parts.join(" | ");
 }
 
 function syncTemperatureLabel() {

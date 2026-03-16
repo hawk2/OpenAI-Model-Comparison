@@ -5,6 +5,8 @@ export const TEXT_MODELS = [
     id: "babbage-002",
     kind: "completion",
     supportsTemperature: true,
+    maxTemperature: 1,
+    advisory: "Temperature is capped at 1.00 for stability.",
     shutdownDate: "2026-09-28"
   },
   {
@@ -70,11 +72,11 @@ export function hasBrowserApiKey() {
 }
 
 export function getTextNotice(modelId) {
-  return getShutdownNotice(TEXT_MODELS.find((model) => model.id === modelId));
+  return buildModelNotice(TEXT_MODELS.find((model) => model.id === modelId));
 }
 
 export function getImageNotice(modelId) {
-  return getShutdownNotice(IMAGE_MODELS.find((model) => model.id === modelId));
+  return buildModelNotice(IMAGE_MODELS.find((model) => model.id === modelId));
 }
 
 export async function compareTextInBrowser(prompt, temperature) {
@@ -108,6 +110,7 @@ function renderApiKeyStatus(statusNode) {
 
 async function compareTextModel(model, prompt, temperature) {
   const startedAt = Date.now();
+  const effectiveTemperature = getEffectiveTemperature(model, temperature);
 
   if (model.kind === "completion") {
     const requestBody = {
@@ -118,25 +121,30 @@ async function compareTextModel(model, prompt, temperature) {
     };
 
     if (model.supportsTemperature) {
-      requestBody.temperature = temperature;
+      requestBody.temperature = effectiveTemperature;
     }
 
     const result = await openAiJson("https://api.openai.com/v1/completions", requestBody);
 
     if (!result.ok) {
-      return buildErrorResult(model.id, Date.now() - startedAt, result.error);
+      return buildErrorResult(model.id, Date.now() - startedAt, result.error, {
+        temperatureUsed: effectiveTemperature
+      });
     }
 
     const output = typeof result.payload?.choices?.[0]?.text === "string" ? result.payload.choices[0].text.trim() : "";
 
     if (!output) {
-      return buildErrorResult(model.id, Date.now() - startedAt, "No text returned by the API.");
+      return buildErrorResult(model.id, Date.now() - startedAt, "No text returned by the API.", {
+        temperatureUsed: effectiveTemperature
+      });
     }
 
     return {
       model: model.id,
       status: "ok",
       durationMs: Date.now() - startedAt,
+      temperatureUsed: effectiveTemperature,
       output
     };
   }
@@ -150,7 +158,7 @@ async function compareTextModel(model, prompt, temperature) {
   };
 
   if (model.supportsTemperature) {
-    requestBody.temperature = temperature;
+    requestBody.temperature = effectiveTemperature;
   }
 
   if (model.id === "gpt-5.4") {
@@ -162,19 +170,24 @@ async function compareTextModel(model, prompt, temperature) {
   const result = await openAiJson("https://api.openai.com/v1/chat/completions", requestBody);
 
   if (!result.ok) {
-    return buildErrorResult(model.id, Date.now() - startedAt, result.error);
+    return buildErrorResult(model.id, Date.now() - startedAt, result.error, {
+      temperatureUsed: effectiveTemperature
+    });
   }
 
   const output = normalizeChatContent(result.payload?.choices?.[0]?.message?.content);
 
   if (!output) {
-    return buildErrorResult(model.id, Date.now() - startedAt, "No text returned by the API.");
+    return buildErrorResult(model.id, Date.now() - startedAt, "No text returned by the API.", {
+      temperatureUsed: effectiveTemperature
+    });
   }
 
   return {
     model: model.id,
     status: "ok",
     durationMs: Date.now() - startedAt,
+    temperatureUsed: effectiveTemperature,
     output
   };
 }
@@ -327,13 +340,33 @@ function normalizeChatContent(content) {
     .trim();
 }
 
-function buildErrorResult(model, durationMs, error) {
+function buildErrorResult(model, durationMs, error, extra = {}) {
   return {
     model,
     status: "error",
     durationMs,
-    error
+    error,
+    ...extra
   };
+}
+
+function buildModelNotice(model) {
+  if (!model) {
+    return "";
+  }
+
+  const notices = [];
+  const shutdownNotice = getShutdownNotice(model);
+
+  if (model.advisory) {
+    notices.push(model.advisory);
+  }
+
+  if (shutdownNotice) {
+    notices.push(shutdownNotice);
+  }
+
+  return notices.join(" ");
 }
 
 function getShutdownNotice(model) {
@@ -363,6 +396,18 @@ function getShutdownNotice(model) {
 
   parts.push(`${days} day${days === 1 ? "" : "s"}`);
   return `Scheduled shutdown in ${parts.join(", ")} on ${formatDate(shutdownDate)}.`;
+}
+
+function getEffectiveTemperature(model, requestedTemperature) {
+  if (!model.supportsTemperature) {
+    return null;
+  }
+
+  if (typeof model.maxTemperature === "number") {
+    return Math.min(requestedTemperature, model.maxTemperature);
+  }
+
+  return requestedTemperature;
 }
 
 function monthDiff(startDate, endDate) {

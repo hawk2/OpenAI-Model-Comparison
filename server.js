@@ -22,7 +22,8 @@ const TEXT_MODELS = [
   {
     id: "babbage-002",
     kind: "completion",
-    supportsTemperature: true
+    supportsTemperature: true,
+    maxTemperature: 1
   },
   {
     id: "gpt-3.5-turbo",
@@ -159,6 +160,7 @@ async function handleImageCompare(req, res) {
 
 async function compareTextModel(model, prompt, temperature) {
   const startedAt = Date.now();
+  const effectiveTemperature = getEffectiveTemperature(model, temperature);
 
   if (model.kind === "completion") {
     const requestBody = {
@@ -169,25 +171,30 @@ async function compareTextModel(model, prompt, temperature) {
     };
 
     if (model.supportsTemperature) {
-      requestBody.temperature = temperature;
+      requestBody.temperature = effectiveTemperature;
     }
 
     const result = await requestOpenAiJson("https://api.openai.com/v1/completions", requestBody);
 
     if (!result.ok) {
-      return buildErrorResult(model.id, Date.now() - startedAt, result.error);
+      return buildErrorResult(model.id, Date.now() - startedAt, result.error, {
+        temperatureUsed: effectiveTemperature
+      });
     }
 
     const output = normalizeText(result.payload?.choices?.[0]?.text);
 
     if (!output) {
-      return buildErrorResult(model.id, Date.now() - startedAt, "No text returned by the API.");
+      return buildErrorResult(model.id, Date.now() - startedAt, "No text returned by the API.", {
+        temperatureUsed: effectiveTemperature
+      });
     }
 
     return {
       model: model.id,
       status: "ok",
       durationMs: Date.now() - startedAt,
+      temperatureUsed: effectiveTemperature,
       output
     };
   }
@@ -198,7 +205,7 @@ async function compareTextModel(model, prompt, temperature) {
   };
 
   if (model.supportsTemperature) {
-    requestBody.temperature = temperature;
+    requestBody.temperature = effectiveTemperature;
   }
 
   if (model.id === "gpt-5.4") {
@@ -210,19 +217,24 @@ async function compareTextModel(model, prompt, temperature) {
   const result = await requestOpenAiJson("https://api.openai.com/v1/chat/completions", requestBody);
 
   if (!result.ok) {
-    return buildErrorResult(model.id, Date.now() - startedAt, result.error);
+    return buildErrorResult(model.id, Date.now() - startedAt, result.error, {
+      temperatureUsed: effectiveTemperature
+    });
   }
 
   const output = normalizeChatMessage(result.payload?.choices?.[0]?.message?.content);
 
   if (!output) {
-    return buildErrorResult(model.id, Date.now() - startedAt, "No text returned by the API.");
+    return buildErrorResult(model.id, Date.now() - startedAt, "No text returned by the API.", {
+      temperatureUsed: effectiveTemperature
+    });
   }
 
   return {
     model: model.id,
     status: "ok",
     durationMs: Date.now() - startedAt,
+    temperatureUsed: effectiveTemperature,
     output
   };
 }
@@ -353,6 +365,18 @@ function normalizeTemperature(value) {
   return Math.round(parsed * 100) / 100;
 }
 
+function getEffectiveTemperature(model, requestedTemperature) {
+  if (!model.supportsTemperature) {
+    return null;
+  }
+
+  if (typeof model.maxTemperature === "number") {
+    return Math.min(requestedTemperature, model.maxTemperature);
+  }
+
+  return requestedTemperature;
+}
+
 function normalizeChatMessage(content) {
   if (typeof content === "string") {
     return content.trim();
@@ -374,12 +398,13 @@ function normalizeChatMessage(content) {
     .trim();
 }
 
-function buildErrorResult(model, durationMs, error) {
+function buildErrorResult(model, durationMs, error, extra = {}) {
   return {
     model,
     status: "error",
     durationMs,
-    error
+    error,
+    ...extra
   };
 }
 
