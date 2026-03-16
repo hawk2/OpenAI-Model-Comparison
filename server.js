@@ -1,0 +1,485 @@
+import { createServer } from "node:http";
+import { readFile } from "node:fs/promises";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const ENV_PATH = path.join(__dirname, ".env");
+
+await loadEnvFile(ENV_PATH);
+
+const API_KEY = requireEnv("OPENAI_API_KEY");
+const PORT = 3000;
+const PUBLIC_DIR = path.join(__dirname, "public");
+const PAGE_ROUTES = new Map([
+  ["/", "/index.html"],
+  ["/text", "/text.html"],
+  ["/image", "/image.html"]
+]);
+const TEXT_PROMPT_INSTRUCTION = "You are a concise, helpful assistant. Answer in 120 words or fewer.";
+const TEXT_MODELS = [
+  {
+    id: "babbage-002",
+    kind: "completion"
+  },
+  {
+    id: "gpt-3.5-turbo",
+    kind: "chat"
+  },
+  {
+    id: "gpt-5.4",
+    kind: "chat"
+  }
+];
+const IMAGE_MODELS = [
+  {
+    id: "dall-e-2",
+    size: "1024x1024"
+  },
+  {
+    id: "dall-e-3",
+    size: "1024x1024"
+  },
+  {
+    id: "gpt-image-1.5",
+    size: "1024x1024"
+  }
+];
+const MIME_TYPES = {
+  ".css": "text/css; charset=utf-8",
+  ".html": "text/html; charset=utf-8",
+  ".js": "application/javascript; charset=utf-8",
+  ".json": "application/json; charset=utf-8",
+  ".svg": "image/svg+xml; charset=utf-8"
+};
+
+createServer(async (req, res) => {
+  try {
+    if (!req.url) {
+      sendJson(res, 400, { error: "Missing request URL." });
+      return;
+    }
+
+    const url = new URL(req.url, "http://127.0.0.1");
+
+    if (req.method === "POST" && url.pathname === "/api/text/compare") {
+      await handleTextCompare(req, res);
+      return;
+    }
+
+    if (req.method === "POST" && url.pathname === "/api/image/compare") {
+      await handleImageCompare(req, res);
+      return;
+    }
+
+    if (req.method === "GET") {
+      await serveStatic(url.pathname, res);
+      return;
+    }
+
+    sendJson(res, 405, { error: "Method not allowed." });
+  } catch (error) {
+    console.error(error);
+    sendJson(res, 500, { error: "Unexpected server error." });
+  }
+}).listen(PORT, () => {
+  console.log(`Model comparison app running at http://localhost:${PORT}`);
+});
+
+async function handleTextCompare(req, res) {
+  let body;
+
+  try {
+    body = await readJsonBody(req);
+  } catch {
+    sendJson(res, 400, { error: "Invalid JSON body." });
+    return;
+  }
+
+  const prompt = typeof body?.prompt === "string" ? body.prompt.trim() : "";
+
+  if (!prompt) {
+    sendJson(res, 400, { error: "Send a non-empty text prompt." });
+    return;
+  }
+
+  if (prompt.length > 4000) {
+    sendJson(res, 400, { error: "Text prompts must be 4000 characters or fewer." });
+    return;
+  }
+
+  const results = await Promise.all(TEXT_MODELS.map((model) => compareTextModel(model, prompt)));
+
+  sendJson(res, 200, {
+    prompt,
+    results
+  });
+}
+
+async function handleImageCompare(req, res) {
+  let body;
+
+  try {
+    body = await readJsonBody(req);
+  } catch {
+    sendJson(res, 400, { error: "Invalid JSON body." });
+    return;
+  }
+
+  const prompt = typeof body?.prompt === "string" ? body.prompt.trim() : "";
+
+  if (!prompt) {
+    sendJson(res, 400, { error: "Send a non-empty image prompt." });
+    return;
+  }
+
+  if (prompt.length > 1000) {
+    sendJson(res, 400, { error: "Image prompts must be 1000 characters or fewer." });
+    return;
+  }
+
+  const results = await Promise.all(IMAGE_MODELS.map((model) => compareImageModel(model, prompt)));
+
+  sendJson(res, 200, {
+    prompt,
+    results
+  });
+}
+
+async function compareTextModel(model, prompt) {
+  const startedAt = Date.now();
+
+  if (model.kind === "completion") {
+    const result = await requestOpenAiJson("https://api.openai.com/v1/completions", {
+      model: model.id,
+      prompt: buildLegacyPrompt(prompt),
+      temperature: 0.85,
+      max_tokens: 300,
+      stop: ["\nUser:", "\nSystem:"]
+    });
+
+    if (!result.ok) {
+      return buildErrorResult(model.id, Date.now() - startedAt, result.error);
+    }
+
+    const output = normalizeText(result.payload?.choices?.[0]?.text);
+
+    if (!output) {
+      return buildErrorResult(model.id, Date.now() - startedAt, "No text returned by the API.");
+    }
+
+    return {
+      model: model.id,
+      status: "ok",
+      durationMs: Date.now() - startedAt,
+      output
+    };
+  }
+
+  const requestBody = {
+    model: model.id,
+    messages: buildChatMessages(prompt)
+  };
+
+  if (model.id === "gpt-5.4") {
+    requestBody.max_completion_tokens = 300;
+  } else {
+    requestBody.max_tokens = 300;
+  }
+
+  const result = await requestOpenAiJson("https://api.openai.com/v1/chat/completions", requestBody);
+
+  if (!result.ok) {
+    return buildErrorResult(model.id, Date.now() - startedAt, result.error);
+  }
+
+  const output = normalizeChatMessage(result.payload?.choices?.[0]?.message?.content);
+
+  if (!output) {
+    return buildErrorResult(model.id, Date.now() - startedAt, "No text returned by the API.");
+  }
+
+  return {
+    model: model.id,
+    status: "ok",
+    durationMs: Date.now() - startedAt,
+    output
+  };
+}
+
+async function compareImageModel(model, prompt) {
+  const startedAt = Date.now();
+
+  const requestBody = {
+    model: model.id,
+    prompt,
+    n: 1,
+    size: model.size
+  };
+
+  if (model.id !== "gpt-image-1.5") {
+    requestBody.response_format = "b64_json";
+  }
+
+  const result = await requestOpenAiJsonWithRetry(
+    "https://api.openai.com/v1/images/generations",
+    requestBody,
+    3
+  );
+
+  if (!result.ok) {
+    return buildErrorResult(model.id, Date.now() - startedAt, result.error);
+  }
+
+  const imageBase64 = result.payload?.data?.[0]?.b64_json;
+
+  if (!imageBase64) {
+    return buildErrorResult(model.id, Date.now() - startedAt, "No image returned by the API.");
+  }
+
+  return {
+    model: model.id,
+    status: "ok",
+    durationMs: Date.now() - startedAt,
+    size: model.size,
+    src: `data:image/png;base64,${imageBase64}`
+  };
+}
+
+async function serveStatic(requestPath, res) {
+  const mappedPath = PAGE_ROUTES.get(requestPath) ?? requestPath;
+  const filePath = path.resolve(PUBLIC_DIR, `.${path.normalize(mappedPath)}`);
+
+  if (!filePath.startsWith(PUBLIC_DIR)) {
+    sendJson(res, 403, { error: "Forbidden." });
+    return;
+  }
+
+  try {
+    const file = await readFile(filePath);
+    const ext = path.extname(filePath);
+    const contentType = MIME_TYPES[ext];
+
+    if (!contentType) {
+      sendJson(res, 415, { error: `Unsupported file type: ${ext || "unknown"}` });
+      return;
+    }
+
+    res.writeHead(200, {
+      "Content-Type": contentType
+    });
+    res.end(file);
+  } catch {
+    sendJson(res, 404, { error: "Not found." });
+  }
+}
+
+async function readJsonBody(req) {
+  const chunks = [];
+
+  for await (const chunk of req) {
+    chunks.push(chunk);
+  }
+
+  if (chunks.length === 0) {
+    return {};
+  }
+
+  const rawBody = Buffer.concat(chunks).toString("utf8");
+
+  try {
+    return JSON.parse(rawBody);
+  } catch {
+    throw new Error("Invalid JSON body.");
+  }
+}
+
+function buildChatMessages(prompt) {
+  return [
+    {
+      role: "system",
+      content: TEXT_PROMPT_INSTRUCTION
+    },
+    {
+      role: "user",
+      content: prompt
+    }
+  ];
+}
+
+function buildLegacyPrompt(prompt) {
+  return `${TEXT_PROMPT_INSTRUCTION}\n\nUser: ${formatLegacyContent(prompt)}\nAssistant:`;
+}
+
+function formatLegacyContent(content) {
+  return content
+    .replace(/\r\n?/gu, "\n")
+    .split("\n")
+    .map((line, index) => (index === 0 ? line : `  ${line}`))
+    .join("\n");
+}
+
+function normalizeText(value) {
+  return typeof value === "string" ? value.trim() : "";
+}
+
+function normalizeChatMessage(content) {
+  if (typeof content === "string") {
+    return content.trim();
+  }
+
+  if (!Array.isArray(content)) {
+    return "";
+  }
+
+  return content
+    .map((item) => {
+      if (item && item.type === "text" && typeof item.text === "string") {
+        return item.text;
+      }
+
+      return "";
+    })
+    .join("\n")
+    .trim();
+}
+
+function buildErrorResult(model, durationMs, error) {
+  return {
+    model,
+    status: "error",
+    durationMs,
+    error
+  };
+}
+
+async function requestOpenAiJson(url, body) {
+  let response;
+
+  try {
+    response = await fetch(url, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${API_KEY}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify(body)
+    });
+  } catch (error) {
+    return {
+      ok: false,
+      status: 502,
+      error: `Failed to reach the OpenAI API: ${error.message}`,
+      retryable: true
+    };
+  }
+
+  let payload;
+  const requestId = response.headers.get("x-request-id") ?? response.headers.get("request-id");
+
+  try {
+    payload = await response.json();
+  } catch {
+    return {
+      ok: false,
+      status: 502,
+      error: "OpenAI API returned a non-JSON response.",
+      requestId,
+      retryable: true
+    };
+  }
+
+  if (!response.ok) {
+    const errorMessage =
+      typeof payload?.error?.message === "string"
+        ? payload.error.message
+        : `OpenAI request failed with status ${response.status}.`;
+
+    return {
+      ok: false,
+      status: response.status,
+      error: requestId ? `${errorMessage} Request ID: ${requestId}` : errorMessage,
+      requestId,
+      retryable: response.status >= 500 || response.status === 429
+    };
+  }
+
+  return {
+    ok: true,
+    status: response.status,
+    payload,
+    requestId
+  };
+}
+
+async function requestOpenAiJsonWithRetry(url, body, maxAttempts) {
+  let attempt = 0;
+  let lastResult;
+
+  while (attempt < maxAttempts) {
+    lastResult = await requestOpenAiJson(url, body);
+
+    if (lastResult.ok || !lastResult.retryable || attempt === maxAttempts - 1) {
+      return lastResult;
+    }
+
+    const backoffMs = 800 * (attempt + 1);
+    await sleep(backoffMs);
+    attempt += 1;
+  }
+
+  return lastResult;
+}
+
+function sleep(ms) {
+  return new Promise((resolve) => {
+    setTimeout(resolve, ms);
+  });
+}
+
+function sendJson(res, statusCode, payload) {
+  res.writeHead(statusCode, {
+    "Content-Type": "application/json; charset=utf-8"
+  });
+  res.end(JSON.stringify(payload));
+}
+
+async function loadEnvFile(envPath) {
+  try {
+    const contents = await readFile(envPath, "utf8");
+
+    for (const rawLine of contents.split(/\r?\n/u)) {
+      const line = rawLine.trim();
+
+      if (!line || line.startsWith("#")) {
+        continue;
+      }
+
+      const equalsIndex = line.indexOf("=");
+
+      if (equalsIndex === -1) {
+        continue;
+      }
+
+      const key = line.slice(0, equalsIndex).trim();
+      const value = line.slice(equalsIndex + 1).trim();
+
+      if (key && !process.env[key]) {
+        process.env[key] = value;
+      }
+    }
+  } catch {
+    return;
+  }
+}
+
+function requireEnv(name) {
+  const value = process.env[name]?.trim();
+
+  if (!value) {
+    throw new Error(`Missing required environment variable: ${name}`);
+  }
+
+  return value;
+}

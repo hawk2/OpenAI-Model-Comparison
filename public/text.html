@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Text Comparison</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <main class="shell">
+      <section class="panel">
+        <header class="topbar">
+          <a class="nav-link" href="/">Choose</a>
+          <div class="nav-links">
+            <a class="nav-link current" href="/text">Text</a>
+            <a class="nav-link" href="/image">Image</a>
+          </div>
+        </header>
+
+        <header class="hero">
+          <p class="eyebrow">Text Comparison</p>
+          <h1>babbage-002 vs gpt-3.5-turbo vs gpt-5.4</h1>
+          <p class="subcopy">
+            One prompt goes to all three text models. `babbage-002` uses the legacy
+            Completions API, while `gpt-3.5-turbo` and `gpt-5.4` use Chat Completions.
+          </p>
+        </header>
+
+        <form id="text-form" class="control-panel">
+          <label class="sr-only" for="text-prompt">Text prompt</label>
+          <textarea
+            id="text-prompt"
+            rows="4"
+            maxlength="4000"
+            placeholder="Ask all three text models the same question."
+            required
+          ></textarea>
+
+          <div class="control-bar">
+            <p id="text-status" class="status">Ready.</p>
+            <button id="text-submit" type="submit">Compare text models</button>
+          </div>
+        </form>
+
+        <section id="text-results" class="result-grid" aria-live="polite"></section>
+      </section>
+    </main>
+
+    <template id="text-result-template">
+      <article class="result-card">
+        <div class="result-head">
+          <div>
+            <p class="eyebrow result-eyebrow">Model</p>
+            <h2 class="result-title"></h2>
+          </div>
+          <p class="result-meta"></p>
+        </div>
+        <pre class="result-body"></pre>
+      </article>
+    </template>
+
+    <script type="module" src="/text.js"></script>
+  </body>
+</html>

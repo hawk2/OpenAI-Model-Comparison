@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Image Comparison</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <main class="shell">
+      <section class="panel">
+        <header class="topbar">
+          <a class="nav-link" href="/">Choose</a>
+          <div class="nav-links">
+            <a class="nav-link" href="/text">Text</a>
+            <a class="nav-link current" href="/image">Image</a>
+          </div>
+        </header>
+
+        <header class="hero">
+          <p class="eyebrow">Image Comparison</p>
+          <h1>dall-e-2 vs dall-e-3 vs gpt-image-1.5</h1>
+          <p class="subcopy">
+            One image prompt goes to all three image models. The app requests one
+            `1024x1024` PNG per model and shows the results side by side.
+          </p>
+        </header>
+
+        <form id="image-form" class="control-panel">
+          <label class="sr-only" for="image-prompt">Image prompt</label>
+          <textarea
+            id="image-prompt"
+            rows="4"
+            maxlength="1000"
+            placeholder="Describe one image prompt to send to all three image models."
+            required
+          ></textarea>
+
+          <div class="control-bar">
+            <p id="image-status" class="status">Ready.</p>
+            <button id="image-submit" type="submit">Compare image models</button>
+          </div>
+        </form>
+
+        <section id="image-results" class="result-grid result-grid-image" aria-live="polite"></section>
+      </section>
+    </main>
+
+    <template id="image-result-template">
+      <article class="result-card">
+        <div class="result-head">
+          <div>
+            <p class="eyebrow result-eyebrow">Model</p>
+            <h2 class="result-title"></h2>
+          </div>
+          <p class="result-meta"></p>
+        </div>
+        <div class="image-frame">
+          <img class="result-image" alt="" hidden />
+          <p class="result-empty"></p>
+        </div>
+      </article>
+    </template>
+
+    <script type="module" src="/image.js"></script>
+  </body>
+</html>

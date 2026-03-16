@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Choose Comparison</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <main class="shell shell-home">
+      <section class="panel panel-home">
+        <header class="hero">
+          <p class="eyebrow">OpenAI API</p>
+          <h1>Choose image or text</h1>
+          <p class="subcopy">
+            Compare text with `babbage-002`, `gpt-3.5-turbo`, and `gpt-5.4`, or compare
+            images with `dall-e-2`, `dall-e-3`, and `gpt-image-1.5`.
+          </p>
+        </header>
+
+        <section class="choice-grid" aria-label="Comparison choices">
+          <a class="choice-card" href="/text">
+            <p class="eyebrow">Text</p>
+            <h2>Compare text models</h2>
+            <p>
+              Send one prompt and inspect three answers side by side, including timing
+              and per-model errors.
+            </p>
+          </a>
+
+          <a class="choice-card" href="/image">
+            <p class="eyebrow">Image</p>
+            <h2>Compare image models</h2>
+            <p>
+              Send one image prompt and inspect three generated images side by side,
+              including timing and model-specific failures.
+            </p>
+          </a>
+        </section>
+      </section>
+    </main>
+  </body>
+</html>
