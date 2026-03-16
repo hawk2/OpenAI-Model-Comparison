@@ -1,5 +1,7 @@
 const textForm = document.querySelector("#text-form");
 const promptInput = document.querySelector("#text-prompt");
+const temperatureInput = document.querySelector("#temperature");
+const temperatureValue = document.querySelector("#temperature-value");
 const statusLabel = document.querySelector("#text-status");
 const submitButton = document.querySelector("#text-submit");
 const resultsContainer = document.querySelector("#text-results");
@@ -8,11 +10,13 @@ const resultTemplate = document.querySelector("#text-result-template");
 const TEXT_MODELS = ["babbage-002", "gpt-3.5-turbo", "gpt-5.4"];
 
 renderTextPlaceholders("Enter a prompt to compare all three text models.");
+syncTemperatureLabel();
 
 textForm.addEventListener("submit", async (event) => {
   event.preventDefault();
 
   const prompt = promptInput.value.trim();
+  const temperature = Number(temperatureInput.value);
 
   if (!prompt) {
     promptInput.focus();
@@ -28,7 +32,7 @@ textForm.addEventListener("submit", async (event) => {
       headers: {
         "Content-Type": "application/json"
       },
-      body: JSON.stringify({ prompt })
+      body: JSON.stringify({ prompt, temperature })
     });
 
     const payload = await response.json();
@@ -43,6 +47,10 @@ textForm.addEventListener("submit", async (event) => {
     renderTextPlaceholders(`Text comparison failed: ${error.message}`);
     setPendingState(false, "Last request failed.");
   }
+});
+
+temperatureInput.addEventListener("input", () => {
+  syncTemperatureLabel();
 });
 
 promptInput.addEventListener("keydown", (event) => {
@@ -82,6 +90,7 @@ function renderTextPlaceholders(message) {
 
 function setPendingState(isPending, text) {
   promptInput.disabled = isPending;
+  temperatureInput.disabled = isPending;
   submitButton.disabled = isPending;
   statusLabel.textContent = text;
 
@@ -92,4 +101,8 @@ function setPendingState(isPending, text) {
 
 function formatDuration(durationMs) {
   return `${(durationMs / 1000).toFixed(2)}s`;
+}
+
+function syncTemperatureLabel() {
+  temperatureValue.textContent = Number(temperatureInput.value).toFixed(2);
 }

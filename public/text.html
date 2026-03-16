@@ -36,6 +36,28 @@
             required
           ></textarea>
 
+          <div class="temperature-panel">
+            <div>
+              <p class="eyebrow">Temperature</p>
+              <p class="temperature-copy">
+                Applied to text models that support it.
+              </p>
+            </div>
+            <div class="temperature-control">
+              <input
+                id="temperature"
+                type="range"
+                min="0"
+                max="2"
+                step="0.05"
+                value="0.85"
+              />
+              <label class="temperature-value" for="temperature">
+                <span id="temperature-value">0.85</span>
+              </label>
+            </div>
+          </div>
+
           <div class="control-bar">
             <p id="text-status" class="status">Ready.</p>
             <button id="text-submit" type="submit">Compare text models</button>

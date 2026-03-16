@@ -16,10 +16,12 @@ Minimal local interface with three pages:
 ## Notes
 
 - The browser never sees your API key. Requests go through `server.js`.
+- Do not commit your real API key to GitHub. If you deploy this app, store the key as a platform secret or environment variable on the server.
 - Text comparison uses:
   - `babbage-002` via `POST /v1/completions`
   - `gpt-3.5-turbo` via `POST /v1/chat/completions`
   - `gpt-5.4` via `POST /v1/chat/completions`
+- The text page includes a temperature control and only sends `temperature` to models marked as supporting it.
 - Image comparison uses `POST /v1/images/generations` for `dall-e-2`, `dall-e-3`, and `gpt-image-1.5`, always requesting one `1024x1024` image. The DALL-E models request `response_format: "b64_json"`; `gpt-image-1.5` does not accept that parameter.
 - There are no model or route fallbacks. `OPENAI_API_KEY` is required, and unknown paths return `404`.
 - As of March 15, 2026, OpenAI documents `babbage-002`, `gpt-3.5-turbo`, `dall-e-2`, and `dall-e-3` as legacy or deprecated models, while `gpt-5.4` and `gpt-image-1.5` are current.

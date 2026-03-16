@@ -180,6 +180,38 @@ h2 {
   align-items: center;
 }
 
+.temperature-panel {
+  display: grid;
+  grid-template-columns: minmax(0, 220px) minmax(0, 1fr);
+  gap: 16px;
+  align-items: center;
+  padding: 16px 18px;
+  border: 1px solid rgba(108, 86, 67, 0.14);
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.5);
+}
+
+.temperature-copy {
+  margin: 6px 0 0;
+  color: var(--muted);
+  line-height: 1.45;
+}
+
+.temperature-control {
+  display: grid;
+  gap: 10px;
+}
+
+.temperature-control input[type="range"] {
+  width: 100%;
+  accent-color: var(--accent);
+}
+
+.temperature-value {
+  font-weight: 700;
+  color: var(--accent);
+}
+
 .status {
   margin: 0;
   color: var(--muted);
@@ -307,6 +339,10 @@ button:disabled {
 
   .topbar,
   .control-bar {
+    grid-template-columns: 1fr;
+  }
+
+  .temperature-panel {
     grid-template-columns: 1fr;
   }
 

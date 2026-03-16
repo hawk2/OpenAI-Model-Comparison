@@ -21,15 +21,18 @@ const TEXT_PROMPT_INSTRUCTION = "You are a concise, helpful assistant. Answer in
 const TEXT_MODELS = [
   {
     id: "babbage-002",
-    kind: "completion"
+    kind: "completion",
+    supportsTemperature: true
   },
   {
     id: "gpt-3.5-turbo",
-    kind: "chat"
+    kind: "chat",
+    supportsTemperature: true
   },
   {
     id: "gpt-5.4",
-    kind: "chat"
+    kind: "chat",
+    supportsTemperature: true
   }
 ];
 const IMAGE_MODELS = [
@@ -98,6 +101,7 @@ async function handleTextCompare(req, res) {
   }
 
   const prompt = typeof body?.prompt === "string" ? body.prompt.trim() : "";
+  const temperature = normalizeTemperature(body?.temperature);
 
   if (!prompt) {
     sendJson(res, 400, { error: "Send a non-empty text prompt." });
@@ -109,10 +113,16 @@ async function handleTextCompare(req, res) {
     return;
   }
 
-  const results = await Promise.all(TEXT_MODELS.map((model) => compareTextModel(model, prompt)));
+  if (temperature === null) {
+    sendJson(res, 400, { error: "Temperature must be a number between 0 and 2." });
+    return;
+  }
+
+  const results = await Promise.all(TEXT_MODELS.map((model) => compareTextModel(model, prompt, temperature)));
 
   sendJson(res, 200, {
     prompt,
+    temperature,
     results
   });
 }
@@ -147,17 +157,22 @@ async function handleImageCompare(req, res) {
   });
 }
 
-async function compareTextModel(model, prompt) {
+async function compareTextModel(model, prompt, temperature) {
   const startedAt = Date.now();
 
   if (model.kind === "completion") {
-    const result = await requestOpenAiJson("https://api.openai.com/v1/completions", {
+    const requestBody = {
       model: model.id,
       prompt: buildLegacyPrompt(prompt),
-      temperature: 0.85,
       max_tokens: 300,
       stop: ["\nUser:", "\nSystem:"]
-    });
+    };
+
+    if (model.supportsTemperature) {
+      requestBody.temperature = temperature;
+    }
+
+    const result = await requestOpenAiJson("https://api.openai.com/v1/completions", requestBody);
 
     if (!result.ok) {
       return buildErrorResult(model.id, Date.now() - startedAt, result.error);
@@ -181,6 +196,10 @@ async function compareTextModel(model, prompt) {
     model: model.id,
     messages: buildChatMessages(prompt)
   };
+
+  if (model.supportsTemperature) {
+    requestBody.temperature = temperature;
+  }
 
   if (model.id === "gpt-5.4") {
     requestBody.max_completion_tokens = 300;
@@ -322,6 +341,16 @@ function formatLegacyContent(content) {
 
 function normalizeText(value) {
   return typeof value === "string" ? value.trim() : "";
+}
+
+function normalizeTemperature(value) {
+  const parsed = Number(value);
+
+  if (!Number.isFinite(parsed) || parsed < 0 || parsed > 2) {
+    return null;
+  }
+
+  return Math.round(parsed * 100) / 100;
 }
 
 function normalizeChatMessage(content) {
