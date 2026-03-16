@@ -1,3 +1,11 @@
+import {
+  IMAGE_MODELS,
+  compareImagesInBrowser,
+  getImageNotice,
+  hasBrowserApiKey,
+  initApiKeyPanel
+} from "./shared.js";
+
 const imageForm = document.querySelector("#image-form");
 const promptInput = document.querySelector("#image-prompt");
 const statusLabel = document.querySelector("#image-status");
@@ -5,8 +13,7 @@ const submitButton = document.querySelector("#image-submit");
 const resultsContainer = document.querySelector("#image-results");
 const resultTemplate = document.querySelector("#image-result-template");
 
-const IMAGE_MODELS = ["dall-e-2", "dall-e-3", "gpt-image-1.5"];
-
+initApiKeyPanel();
 renderImagePlaceholders("Enter a prompt to compare all three image models.");
 
 imageForm.addEventListener("submit", async (event) => {
@@ -23,19 +30,9 @@ imageForm.addEventListener("submit", async (event) => {
   renderImagePlaceholders("Generating image...");
 
   try {
-    const response = await fetch("/api/image/compare", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({ prompt })
-    });
-
-    const payload = await response.json();
-
-    if (!response.ok) {
-      throw new Error(payload?.error ?? "Request failed.");
-    }
+    const payload = hasBrowserApiKey()
+      ? await compareImagesInBrowser(prompt)
+      : await requestLocalCompare(prompt);
 
     renderImageResults(payload.results, prompt);
     setPendingState(false, "Ready.");
@@ -58,10 +55,12 @@ function renderImageResults(results, prompt) {
       const card = resultTemplate.content.firstElementChild.cloneNode(true);
       const image = card.querySelector(".result-image");
       const emptyText = card.querySelector(".result-empty");
+      const notice = card.querySelector(".result-notice");
 
       card.classList.toggle("is-error", result.status === "error");
       card.querySelector(".result-title").textContent = result.model;
       card.querySelector(".result-meta").textContent = formatDuration(result.durationMs);
+      applyNotice(notice, getImageNotice(result.model));
 
       if (result.status === "ok") {
         image.hidden = false;
@@ -82,9 +81,11 @@ function renderImagePlaceholders(message) {
   resultsContainer.replaceChildren(
     ...IMAGE_MODELS.map((model) => {
       const card = resultTemplate.content.firstElementChild.cloneNode(true);
+      const notice = card.querySelector(".result-notice");
       card.classList.add("is-placeholder");
-      card.querySelector(".result-title").textContent = model;
+      card.querySelector(".result-title").textContent = model.id;
       card.querySelector(".result-meta").textContent = "Waiting";
+      applyNotice(notice, getImageNotice(model.id));
       card.querySelector(".result-empty").textContent = message;
       return card;
     })
@@ -103,4 +104,27 @@ function setPendingState(isPending, text) {
 
 function formatDuration(durationMs) {
   return `${(durationMs / 1000).toFixed(2)}s`;
+}
+
+function applyNotice(node, text) {
+  node.hidden = !text;
+  node.textContent = text;
+}
+
+async function requestLocalCompare(prompt) {
+  const response = await fetch("/api/image/compare", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({ prompt })
+  });
+
+  const payload = await response.json();
+
+  if (!response.ok) {
+    throw new Error(payload?.error ?? "Request failed.");
+  }
+
+  return payload;
 }

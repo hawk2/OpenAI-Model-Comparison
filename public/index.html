@@ -4,11 +4,33 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Choose Comparison</title>
-    <link rel="stylesheet" href="/styles.css" />
+    <link rel="stylesheet" href="./styles.css" />
   </head>
   <body>
     <main class="shell shell-home">
       <section class="panel panel-home">
+        <section class="api-key-panel">
+          <div>
+            <p class="eyebrow">Browser API Key</p>
+            <p class="api-key-copy">
+              Paste a key here to run directly from GitHub Pages in this browser only.
+              Leaving it blank uses the local server when one exists.
+            </p>
+          </div>
+
+          <form id="api-key-form" class="api-key-form">
+            <label class="sr-only" for="api-key-input">OpenAI API key</label>
+            <input id="api-key-input" type="password" placeholder="sk-..." autocomplete="off" />
+            <div class="api-key-actions">
+              <p id="api-key-status" class="status">Ready.</p>
+              <div class="button-row">
+                <button type="button" id="api-key-clear" class="ghost-button">Clear key</button>
+                <button type="submit">Save key</button>
+              </div>
+            </div>
+          </form>
+        </section>
+
         <header class="hero">
           <p class="eyebrow">OpenAI API</p>
           <h1>Choose image or text</h1>
@@ -19,7 +41,7 @@
         </header>
 
         <section class="choice-grid" aria-label="Comparison choices">
-          <a class="choice-card" href="/text">
+          <a class="choice-card" href="./text.html">
             <p class="eyebrow">Text</p>
             <h2>Compare text models</h2>
             <p>
@@ -28,7 +50,7 @@
             </p>
           </a>
 
-          <a class="choice-card" href="/image">
+          <a class="choice-card" href="./image.html">
             <p class="eyebrow">Image</p>
             <h2>Compare image models</h2>
             <p>
@@ -39,5 +61,10 @@
         </section>
       </section>
     </main>
+
+    <script type="module">
+      import { initApiKeyPanel } from "./shared.js";
+      initApiKeyPanel();
+    </script>
   </body>
 </html>

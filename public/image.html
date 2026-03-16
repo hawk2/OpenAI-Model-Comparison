@@ -4,18 +4,40 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Image Comparison</title>
-    <link rel="stylesheet" href="/styles.css" />
+    <link rel="stylesheet" href="./styles.css" />
   </head>
   <body>
     <main class="shell">
       <section class="panel">
         <header class="topbar">
-          <a class="nav-link" href="/">Choose</a>
+          <a class="nav-link" href="./index.html">Choose</a>
           <div class="nav-links">
-            <a class="nav-link" href="/text">Text</a>
-            <a class="nav-link current" href="/image">Image</a>
+            <a class="nav-link" href="./text.html">Text</a>
+            <a class="nav-link current" href="./image.html">Image</a>
           </div>
         </header>
+
+        <section class="api-key-panel">
+          <div>
+            <p class="eyebrow">Browser API Key</p>
+            <p class="api-key-copy">
+              Paste a key here to run directly from GitHub Pages in this browser only.
+              Leaving it blank uses the local server when one exists.
+            </p>
+          </div>
+
+          <form id="api-key-form" class="api-key-form">
+            <label class="sr-only" for="api-key-input">OpenAI API key</label>
+            <input id="api-key-input" type="password" placeholder="sk-..." autocomplete="off" />
+            <div class="api-key-actions">
+              <p id="api-key-status" class="status">Ready.</p>
+              <div class="button-row">
+                <button type="button" id="api-key-clear" class="ghost-button">Clear key</button>
+                <button type="submit">Save key</button>
+              </div>
+            </div>
+          </form>
+        </section>
 
         <header class="hero">
           <p class="eyebrow">Image Comparison</p>
@@ -52,6 +74,7 @@
           <div>
             <p class="eyebrow result-eyebrow">Model</p>
             <h2 class="result-title"></h2>
+            <p class="result-notice" hidden></p>
           </div>
           <p class="result-meta"></p>
         </div>
@@ -62,6 +85,6 @@
       </article>
     </template>
 
-    <script type="module" src="/image.js"></script>
+    <script type="module" src="./image.js"></script>
   </body>
 </html>

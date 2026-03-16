@@ -1,3 +1,11 @@
+import {
+  TEXT_MODELS,
+  compareTextInBrowser,
+  getTextNotice,
+  hasBrowserApiKey,
+  initApiKeyPanel
+} from "./shared.js";
+
 const textForm = document.querySelector("#text-form");
 const promptInput = document.querySelector("#text-prompt");
 const temperatureInput = document.querySelector("#temperature");
@@ -7,8 +15,7 @@ const submitButton = document.querySelector("#text-submit");
 const resultsContainer = document.querySelector("#text-results");
 const resultTemplate = document.querySelector("#text-result-template");
 
-const TEXT_MODELS = ["babbage-002", "gpt-3.5-turbo", "gpt-5.4"];
-
+initApiKeyPanel();
 renderTextPlaceholders("Enter a prompt to compare all three text models.");
 syncTemperatureLabel();
 
@@ -27,19 +34,9 @@ textForm.addEventListener("submit", async (event) => {
   renderTextPlaceholders("Running comparison...");
 
   try {
-    const response = await fetch("/api/text/compare", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({ prompt, temperature })
-    });
-
-    const payload = await response.json();
-
-    if (!response.ok) {
-      throw new Error(payload?.error ?? "Request failed.");
-    }
+    const payload = hasBrowserApiKey()
+      ? await compareTextInBrowser(prompt, temperature)
+      : await requestLocalCompare(prompt, temperature);
 
     renderTextResults(payload.results);
     setPendingState(false, "Ready.");
@@ -65,10 +62,12 @@ function renderTextResults(results) {
     ...results.map((result) => {
       const card = resultTemplate.content.firstElementChild.cloneNode(true);
       const body = card.querySelector(".result-body");
+      const notice = card.querySelector(".result-notice");
 
       card.classList.toggle("is-error", result.status === "error");
       card.querySelector(".result-title").textContent = result.model;
       card.querySelector(".result-meta").textContent = formatDuration(result.durationMs);
+      applyNotice(notice, getTextNotice(result.model));
       body.textContent = result.status === "ok" ? result.output : `Error: ${result.error}`;
       return card;
     })
@@ -79,9 +78,11 @@ function renderTextPlaceholders(message) {
   resultsContainer.replaceChildren(
     ...TEXT_MODELS.map((model) => {
       const card = resultTemplate.content.firstElementChild.cloneNode(true);
+      const notice = card.querySelector(".result-notice");
       card.classList.add("is-placeholder");
-      card.querySelector(".result-title").textContent = model;
+      card.querySelector(".result-title").textContent = model.id;
       card.querySelector(".result-meta").textContent = "Waiting";
+      applyNotice(notice, getTextNotice(model.id));
       card.querySelector(".result-body").textContent = message;
       return card;
     })
@@ -105,4 +106,27 @@ function formatDuration(durationMs) {
 
 function syncTemperatureLabel() {
   temperatureValue.textContent = Number(temperatureInput.value).toFixed(2);
+}
+
+function applyNotice(node, text) {
+  node.hidden = !text;
+  node.textContent = text;
+}
+
+async function requestLocalCompare(prompt, temperature) {
+  const response = await fetch("/api/text/compare", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({ prompt, temperature })
+  });
+
+  const payload = await response.json();
+
+  if (!response.ok) {
+    throw new Error(payload?.error ?? "Request failed.");
+  }
+
+  return payload;
 }
