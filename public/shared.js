@@ -7,50 +7,59 @@ export const TEXT_MODELS = [
     supportsTemperature: true,
     maxTemperature: 1,
     advisory: "Temperature is capped at 1.00 for stability.",
-    shutdownDate: "2026-09-28"
+    shutdownDate: "2026-09-28",
+    inputPricePer1M: 0.40
   },
   {
     id: "davinci-002",
     kind: "completion",
-    supportsTemperature: true
+    supportsTemperature: true,
+    inputPricePer1M: 2.00
   },
   {
     id: "gpt-3.5-turbo",
     kind: "chat",
-    supportsTemperature: true
+    supportsTemperature: true,
+    inputPricePer1M: 0.50
   },
   {
     id: "gpt-4",
     kind: "chat",
-    supportsTemperature: true
+    supportsTemperature: true,
+    inputPricePer1M: 30.00
   },
   {
     id: "gpt-4o",
     kind: "chat",
-    supportsTemperature: true
+    supportsTemperature: true,
+    inputPricePer1M: 2.50
   },
   {
     id: "gpt-4.1",
     kind: "chat",
-    supportsTemperature: true
+    supportsTemperature: true,
+    inputPricePer1M: 2.00
   },
   {
     id: "o3",
     kind: "chat",
     supportsTemperature: false,
-    usesMaxCompletionTokens: true
+    usesMaxCompletionTokens: true,
+    inputPricePer1M: 10.00
   },
   {
     id: "gpt-5",
     kind: "chat",
     supportsTemperature: true,
-    usesMaxCompletionTokens: true
+    usesMaxCompletionTokens: true,
+    inputPricePer1M: 75.00
   },
   {
     id: "gpt-5.1",
     kind: "chat",
     supportsTemperature: true,
-    usesMaxCompletionTokens: true
+    usesMaxCompletionTokens: true,
+    inputPricePer1M: 75.00
   }
 ];
 
@@ -144,6 +153,19 @@ export function estimateInputTokens(selectedModelIds, promptText) {
   const userTokens = Math.max(1, Math.ceil(promptText.length / 4));
   const systemTokens = 16;
   return selectedModelIds.length * (userTokens + systemTokens);
+}
+
+// Estimated input cost in USD across all selected models for a given prompt
+export function estimateInputCost(selectedModelIds, promptText) {
+  const userTokens = Math.max(1, Math.ceil(promptText.length / 4));
+  const systemTokens = 16;
+  const tokensPerModel = userTokens + systemTokens;
+
+  return selectedModelIds.reduce((total, id) => {
+    const model = TEXT_MODELS.find((m) => m.id === id);
+    const price = model?.inputPricePer1M ?? 0;
+    return total + (tokensPerModel / 1_000_000) * price;
+  }, 0);
 }
 
 export async function compareOneImageInBrowser(modelId, prompt, settings = {}) {

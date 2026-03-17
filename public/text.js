@@ -5,7 +5,8 @@ import {
   getTextNotice,
   hasBrowserApiKey,
   initApiKeyPanel,
-  estimateInputTokens
+  estimateInputTokens,
+  estimateInputCost
 } from "./shared.js";
 
 const TEXT_MODEL_SELECTION_KEY = "text-model-selection";
@@ -151,12 +152,17 @@ function updateTokenEstimate() {
 
   tokenEstimateEl.classList.remove("token-estimate--warn");
   const userTokens = Math.max(1, Math.ceil(promptText.length / 4));
-  const totalTokens = estimateInputTokens(selectedIds, promptText);
   const perModel = userTokens + 16;
+  const totalTokens = estimateInputTokens(selectedIds, promptText);
+  const totalCost = estimateInputCost(selectedIds, promptText);
+
+  const costStr = totalCost < 0.000001
+    ? "<$0.000001"
+    : `$${totalCost.toFixed(6)}`;
 
   tokenEstimateEl.textContent =
-    `~${totalTokens} total input tokens across ${selectedIds.length} models` +
-    ` (${perModel} tokens × ${selectedIds.length})`;
+    `~${totalTokens} input tokens across ${selectedIds.length} models` +
+    ` (${perModel} × ${selectedIds.length}) — est. ${costStr}`;
 }
 
 // ── Results rendering ──────────────────────────────────────────────────────
