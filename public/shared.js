@@ -20,7 +20,7 @@ export const TEXT_MODELS = [
     id: "gpt-3.5-turbo",
     kind: "chat",
     supportsTemperature: true,
-    inputPricePer1M: 0.50
+    inputPricePer1M: 0.25
   },
   {
     id: "gpt-4",
@@ -45,28 +45,28 @@ export const TEXT_MODELS = [
     kind: "chat",
     supportsTemperature: false,
     usesMaxCompletionTokens: true,
-    inputPricePer1M: 10.00
+    inputPricePer1M: 2.00
   },
   {
     id: "gpt-5",
     kind: "chat",
     supportsTemperature: false,
     usesMaxCompletionTokens: true,
-    inputPricePer1M: 75.00
+    inputPricePer1M: 1.25
   },
   {
     id: "gpt-5.1",
     kind: "chat",
     supportsTemperature: false,
     usesMaxCompletionTokens: true,
-    inputPricePer1M: 75.00
+    inputPricePer1M: 1.25
   },
   {
     id: "gpt-5.4",
     kind: "chat",
     supportsTemperature: false,
     usesMaxCompletionTokens: true,
-    inputPricePer1M: 75.00
+    inputPricePer1M: 2.50
   }
 ];
 
