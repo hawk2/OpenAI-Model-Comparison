@@ -59,13 +59,19 @@ const TEXT_MODELS = [
   {
     id: "gpt-5",
     kind: "chat",
-    supportsTemperature: true,
+    supportsTemperature: false,
     usesMaxCompletionTokens: true
   },
   {
     id: "gpt-5.1",
     kind: "chat",
-    supportsTemperature: true,
+    supportsTemperature: false,
+    usesMaxCompletionTokens: true
+  },
+  {
+    id: "gpt-5.4",
+    kind: "chat",
+    supportsTemperature: false,
     usesMaxCompletionTokens: true
   }
 ];

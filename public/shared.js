@@ -50,14 +50,21 @@ export const TEXT_MODELS = [
   {
     id: "gpt-5",
     kind: "chat",
-    supportsTemperature: true,
+    supportsTemperature: false,
     usesMaxCompletionTokens: true,
     inputPricePer1M: 75.00
   },
   {
     id: "gpt-5.1",
     kind: "chat",
-    supportsTemperature: true,
+    supportsTemperature: false,
+    usesMaxCompletionTokens: true,
+    inputPricePer1M: 75.00
+  },
+  {
+    id: "gpt-5.4",
+    kind: "chat",
+    supportsTemperature: false,
     usesMaxCompletionTokens: true,
     inputPricePer1M: 75.00
   }
