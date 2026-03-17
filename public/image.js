@@ -1,5 +1,6 @@
 import {
   IMAGE_MODELS,
+  DEFAULT_IMAGE_MODEL_IDS,
   compareImagesInBrowser,
   compareOneImageInBrowser,
   getImageNotice,
@@ -8,6 +9,7 @@ import {
 } from "./shared.js";
 
 const PROMPT_HISTORY_KEY = "image-comparison-prompt-history";
+const IMAGE_MODEL_SELECTION_KEY = "image-model-selection";
 const MAX_PROMPT_HISTORY = 10;
 const MAX_SESSION_HISTORY = 5;
 
@@ -20,20 +22,28 @@ const resultTemplate = document.querySelector("#image-result-template");
 const promptHistoryEl = document.querySelector("#prompt-history");
 const historyPanel = document.querySelector("#history-panel");
 const historyList = document.querySelector("#history-list");
+const modelPickerEl = document.querySelector("#image-model-picker");
 
 let sessionHistory = [];
 
 initApiKeyPanel();
-renderImagePlaceholders("Enter a prompt to compare all three image models.");
+renderModelPicker();
+renderImagePlaceholders("Select models and enter a prompt to compare.");
 renderPromptHistory();
 
 imageForm.addEventListener("submit", async (event) => {
   event.preventDefault();
 
   const prompt = promptInput.value.trim();
+  const selectedIds = getSelectedModelIds();
 
   if (!prompt) {
     promptInput.focus();
+    return;
+  }
+
+  if (selectedIds.length < 2) {
+    statusLabel.textContent = "Select at least 2 models first.";
     return;
   }
 
@@ -42,19 +52,20 @@ imageForm.addEventListener("submit", async (event) => {
   savePromptToHistory(prompt);
   renderPromptHistory();
   setPendingState(true, "Running image comparison...");
-  renderImagePlaceholders("Generating image...");
+  renderImagePlaceholders("Generating image...", selectedIds);
 
   try {
     const payload = hasBrowserApiKey()
-      ? await compareImagesInBrowser(prompt, settings)
-      : await requestLocalCompare(prompt, settings);
+      ? await compareImagesInBrowser(prompt, settings, selectedIds)
+      : await requestLocalCompare(prompt, settings, selectedIds);
 
     renderImageResults(payload.results, prompt, settings);
+    setGridColumns(resultsContainer, payload.results.length);
     addToSessionHistory(prompt, settings, payload.results);
     renderHistoryPanel();
     setPendingState(false, "Ready.");
   } catch (error) {
-    renderImagePlaceholders(`Image comparison failed: ${error.message}`);
+    renderImagePlaceholders(`Image comparison failed: ${error.message}`, selectedIds);
     setPendingState(false, "Last request failed.");
   }
 });
@@ -65,6 +76,65 @@ promptInput.addEventListener("keydown", (event) => {
     imageForm.requestSubmit();
   }
 });
+
+// ── Model picker ───────────────────────────────────────────────────────────
+
+function loadSavedSelection() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(IMAGE_MODEL_SELECTION_KEY));
+    if (Array.isArray(saved) && saved.length >= 2) return saved;
+  } catch {
+    // ignore
+  }
+  return DEFAULT_IMAGE_MODEL_IDS;
+}
+
+function saveSelection(ids) {
+  localStorage.setItem(IMAGE_MODEL_SELECTION_KEY, JSON.stringify(ids));
+}
+
+function getSelectedModelIds() {
+  return [...modelPickerEl.querySelectorAll("input[type='checkbox']:checked")].map((el) => el.value);
+}
+
+function renderModelPicker() {
+  const savedIds = loadSavedSelection();
+
+  modelPickerEl.replaceChildren(
+    ...IMAGE_MODELS.map((model) => {
+      const optionId = `image-picker-${model.id}`;
+
+      const wrapper = document.createElement("span");
+      wrapper.className = "model-option";
+
+      const checkbox = document.createElement("input");
+      checkbox.type = "checkbox";
+      checkbox.id = optionId;
+      checkbox.value = model.id;
+      checkbox.checked = savedIds.includes(model.id);
+      checkbox.addEventListener("change", () => {
+        saveSelection(getSelectedModelIds());
+        const count = getSelectedModelIds().length;
+        statusLabel.textContent = count < 2 ? "Select at least 2 models." : "Ready.";
+      });
+
+      const label = document.createElement("label");
+      label.htmlFor = optionId;
+      label.textContent = model.id;
+
+      wrapper.appendChild(checkbox);
+      wrapper.appendChild(label);
+      return wrapper;
+    })
+  );
+}
+
+// ── Grid layout ────────────────────────────────────────────────────────────
+
+function setGridColumns(container, count) {
+  const cols = count <= 2 ? 2 : 3;
+  container.style.gridTemplateColumns = `repeat(${cols}, minmax(0, 1fr))`;
+}
 
 // ── Settings ──────────────────────────────────────────────────────────────────
 
@@ -220,9 +290,12 @@ async function regenerateModel(modelId, prompt, settings, card) {
 
 // ── Placeholders ───────────────────────────────────────────────────────────
 
-function renderImagePlaceholders(message) {
+function renderImagePlaceholders(message, modelIds = DEFAULT_IMAGE_MODEL_IDS) {
+  const models = IMAGE_MODELS.filter((m) => modelIds.includes(m.id));
+  setGridColumns(resultsContainer, models.length);
+
   resultsContainer.replaceChildren(
-    ...IMAGE_MODELS.map((model) => {
+    ...models.map((model) => {
       const card = resultTemplate.content.firstElementChild.cloneNode(true);
       const notice = card.querySelector(".result-notice");
       card.classList.add("is-placeholder");
@@ -321,11 +394,11 @@ function applyNotice(node, text) {
   node.textContent = text;
 }
 
-async function requestLocalCompare(prompt, settings) {
+async function requestLocalCompare(prompt, settings, selectedModelIds = []) {
   const response = await fetch("/api/image/compare", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ prompt, ...settings })
+    body: JSON.stringify({ prompt, ...settings, modelIds: selectedModelIds })
   });
 
   const payload = await response.json();

@@ -373,6 +373,83 @@ button:disabled {
   border: 0;
 }
 
+/* ── Model picker ───────────────────────────────────────────────────────── */
+
+.model-picker {
+  display: grid;
+  gap: 10px;
+  padding: 16px 18px;
+  border: 1px solid rgba(94, 71, 48, 0.12);
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.5);
+}
+
+.model-picker-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.model-picker-hint {
+  margin: 0;
+  font-size: 0.82rem;
+  color: var(--muted);
+}
+
+.model-checkbox-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.model-option {
+  position: relative;
+}
+
+.model-option input[type="checkbox"] {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.model-option label {
+  display: inline-block;
+  padding: 7px 13px;
+  border: 1px solid rgba(108, 86, 67, 0.22);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.6);
+  font-size: 0.88rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 120ms ease, border-color 120ms ease, color 120ms ease;
+  user-select: none;
+}
+
+.model-option input[type="checkbox"]:checked + label {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fffdf9;
+}
+
+.model-option label:hover {
+  background: rgba(255, 255, 255, 0.9);
+}
+
+.model-option input[type="checkbox"]:checked + label:hover {
+  background: var(--accent-dark);
+}
+
+.token-estimate {
+  margin: 0;
+  font-size: 0.84rem;
+  color: var(--muted);
+}
+
+.token-estimate--warn {
+  color: var(--danger);
+}
+
 /* ── Settings panel ─────────────────────────────────────────────────────── */
 
 .settings-panel {

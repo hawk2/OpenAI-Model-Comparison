@@ -10,16 +10,51 @@ export const TEXT_MODELS = [
     shutdownDate: "2026-09-28"
   },
   {
+    id: "davinci-002",
+    kind: "completion",
+    supportsTemperature: true
+  },
+  {
     id: "gpt-3.5-turbo",
     kind: "chat",
     supportsTemperature: true
   },
   {
-    id: "gpt-5.4",
+    id: "gpt-4",
     kind: "chat",
     supportsTemperature: true
+  },
+  {
+    id: "gpt-4o",
+    kind: "chat",
+    supportsTemperature: true
+  },
+  {
+    id: "gpt-4.1",
+    kind: "chat",
+    supportsTemperature: true
+  },
+  {
+    id: "o3",
+    kind: "chat",
+    supportsTemperature: false,
+    usesMaxCompletionTokens: true
+  },
+  {
+    id: "gpt-5",
+    kind: "chat",
+    supportsTemperature: true,
+    usesMaxCompletionTokens: true
+  },
+  {
+    id: "gpt-5.1",
+    kind: "chat",
+    supportsTemperature: true,
+    usesMaxCompletionTokens: true
   }
 ];
+
+export const DEFAULT_TEXT_MODEL_IDS = ["gpt-4o", "gpt-3.5-turbo", "babbage-002"];
 
 export const IMAGE_MODELS = [
   {
@@ -34,11 +69,20 @@ export const IMAGE_MODELS = [
     shutdownDate: "2026-05-12"
   },
   {
+    id: "gpt-image-1",
+    sizes: { square: "1024x1024", landscape: "1536x1024", portrait: "1024x1536" },
+    qualities: ["low", "medium", "high"],
+    noResponseFormat: true
+  },
+  {
     id: "gpt-image-1.5",
     sizes: { square: "1024x1024", landscape: "1536x1024", portrait: "1024x1536" },
-    qualities: ["low", "medium", "high"]
+    qualities: ["low", "medium", "high"],
+    noResponseFormat: true
   }
 ];
+
+export const DEFAULT_IMAGE_MODEL_IDS = ["dall-e-2", "dall-e-3", "gpt-image-1.5"];
 
 const TEXT_PROMPT_INSTRUCTION = "You are a concise, helpful assistant. Answer in 120 words or fewer.";
 
@@ -81,14 +125,25 @@ export function getImageNotice(modelId) {
   return buildModelNotice(IMAGE_MODELS.find((model) => model.id === modelId));
 }
 
-export async function compareTextInBrowser(prompt, temperature) {
-  const results = await Promise.all(TEXT_MODELS.map((model) => compareTextModel(model, prompt, temperature)));
+export async function compareTextInBrowser(prompt, temperature, selectedModelIds = []) {
+  const models =
+    selectedModelIds.length >= 2 ? TEXT_MODELS.filter((m) => selectedModelIds.includes(m.id)) : TEXT_MODELS;
+  const results = await Promise.all(models.map((model) => compareTextModel(model, prompt, temperature)));
   return { prompt, temperature, results };
 }
 
-export async function compareImagesInBrowser(prompt, settings = {}) {
-  const results = await Promise.all(IMAGE_MODELS.map((model) => compareImageModel(model, prompt, settings)));
+export async function compareImagesInBrowser(prompt, settings = {}, selectedModelIds = []) {
+  const models =
+    selectedModelIds.length >= 2 ? IMAGE_MODELS.filter((m) => selectedModelIds.includes(m.id)) : IMAGE_MODELS;
+  const results = await Promise.all(models.map((model) => compareImageModel(model, prompt, settings)));
   return { prompt, results };
+}
+
+// Rough token estimate: chars / 4 per model + system prompt overhead (~16 tokens)
+export function estimateInputTokens(selectedModelIds, promptText) {
+  const userTokens = Math.max(1, Math.ceil(promptText.length / 4));
+  const systemTokens = 16;
+  return selectedModelIds.length * (userTokens + systemTokens);
 }
 
 export async function compareOneImageInBrowser(modelId, prompt, settings = {}) {
@@ -169,7 +224,7 @@ async function compareTextModel(model, prompt, temperature) {
     requestBody.temperature = effectiveTemperature;
   }
 
-  if (model.id === "gpt-5.4") {
+  if (model.usesMaxCompletionTokens) {
     requestBody.max_completion_tokens = 300;
   } else {
     requestBody.max_tokens = 300;
@@ -212,7 +267,7 @@ async function compareImageModel(model, prompt, settings = {}) {
     size
   };
 
-  if (model.id !== "gpt-image-1.5") {
+  if (!model.noResponseFormat) {
     requestBody.response_format = "b64_json";
   }
 
@@ -220,7 +275,7 @@ async function compareImageModel(model, prompt, settings = {}) {
     requestBody.style = style;
   }
 
-  if (model.id === "gpt-image-1.5" && model.qualities?.includes(quality)) {
+  if (model.qualities?.includes(quality)) {
     requestBody.quality = quality;
   }
 
@@ -230,9 +285,10 @@ async function compareImageModel(model, prompt, settings = {}) {
     return buildErrorResult(model.id, Date.now() - startedAt, result.error);
   }
 
-  const imageBase64 = result.payload?.data?.[0]?.b64_json;
+  const item = result.payload?.data?.[0];
+  const src = item?.b64_json ? `data:image/png;base64,${item.b64_json}` : item?.url ?? "";
 
-  if (!imageBase64) {
+  if (!src) {
     return buildErrorResult(model.id, Date.now() - startedAt, "No image returned by the API.");
   }
 
@@ -241,7 +297,7 @@ async function compareImageModel(model, prompt, settings = {}) {
     status: "ok",
     durationMs: Date.now() - startedAt,
     size,
-    src: `data:image/png;base64,${imageBase64}`
+    src
   };
 }
 

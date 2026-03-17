@@ -42,20 +42,29 @@
 
         <header class="hero">
           <p class="eyebrow">Text Comparison</p>
-          <h1>babbage-002 vs gpt-3.5-turbo vs gpt-5.4</h1>
+          <h1>Compare text models side by side</h1>
           <p class="subcopy">
-            One prompt goes to all three text models. `babbage-002` uses the legacy
-            Completions API, while `gpt-3.5-turbo` and `gpt-5.4` use Chat Completions.
+            One prompt goes to every selected model simultaneously. Legacy completion models
+            (babbage, davinci) and chat models (GPT-4+, o3) are all supported.
           </p>
         </header>
 
         <form id="text-form" class="control-panel">
+          <section class="model-picker">
+            <div class="model-picker-header">
+              <p class="eyebrow">Models</p>
+              <p class="model-picker-hint">Select at least 2</p>
+            </div>
+            <div id="text-model-picker" class="model-checkbox-grid"></div>
+            <p id="text-token-estimate" class="token-estimate"></p>
+          </section>
+
           <label class="sr-only" for="text-prompt">Text prompt</label>
           <textarea
             id="text-prompt"
             rows="4"
             maxlength="4000"
-            placeholder="Ask all three text models the same question."
+            placeholder="Ask the selected text models the same question."
             required
           ></textarea>
 

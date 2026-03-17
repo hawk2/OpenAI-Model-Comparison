@@ -26,14 +26,47 @@ const TEXT_MODELS = [
     maxTemperature: 1
   },
   {
+    id: "davinci-002",
+    kind: "completion",
+    supportsTemperature: true
+  },
+  {
     id: "gpt-3.5-turbo",
     kind: "chat",
     supportsTemperature: true
   },
   {
-    id: "gpt-5.4",
+    id: "gpt-4",
     kind: "chat",
     supportsTemperature: true
+  },
+  {
+    id: "gpt-4o",
+    kind: "chat",
+    supportsTemperature: true
+  },
+  {
+    id: "gpt-4.1",
+    kind: "chat",
+    supportsTemperature: true
+  },
+  {
+    id: "o3",
+    kind: "chat",
+    supportsTemperature: false,
+    usesMaxCompletionTokens: true
+  },
+  {
+    id: "gpt-5",
+    kind: "chat",
+    supportsTemperature: true,
+    usesMaxCompletionTokens: true
+  },
+  {
+    id: "gpt-5.1",
+    kind: "chat",
+    supportsTemperature: true,
+    usesMaxCompletionTokens: true
   }
 ];
 const IMAGE_MODELS = [
@@ -47,9 +80,16 @@ const IMAGE_MODELS = [
     styles: ["vivid", "natural"]
   },
   {
+    id: "gpt-image-1",
+    sizes: { square: "1024x1024", landscape: "1536x1024", portrait: "1024x1536" },
+    qualities: ["low", "medium", "high"],
+    noResponseFormat: true
+  },
+  {
     id: "gpt-image-1.5",
     sizes: { square: "1024x1024", landscape: "1536x1024", portrait: "1024x1536" },
-    qualities: ["low", "medium", "high"]
+    qualities: ["low", "medium", "high"],
+    noResponseFormat: true
   }
 ];
 const MIME_TYPES = {
@@ -126,13 +166,18 @@ async function handleTextCompare(req, res) {
     return;
   }
 
-  const results = await Promise.all(TEXT_MODELS.map((model) => compareTextModel(model, prompt, temperature)));
+  const requestedIds = Array.isArray(body?.modelIds) ? body.modelIds.filter((id) => typeof id === "string") : [];
+  const models =
+    requestedIds.length >= 2 ? TEXT_MODELS.filter((m) => requestedIds.includes(m.id)) : TEXT_MODELS;
 
-  sendJson(res, 200, {
-    prompt,
-    temperature,
-    results
-  });
+  if (models.length < 2) {
+    sendJson(res, 400, { error: "Select at least 2 valid model IDs." });
+    return;
+  }
+
+  const results = await Promise.all(models.map((model) => compareTextModel(model, prompt, temperature)));
+
+  sendJson(res, 200, { prompt, temperature, results });
 }
 
 async function handleImageCompare(req, res) {
@@ -158,7 +203,16 @@ async function handleImageCompare(req, res) {
   }
 
   const settings = extractImageSettings(body);
-  const results = await Promise.all(IMAGE_MODELS.map((model) => compareImageModel(model, prompt, settings)));
+  const requestedIds = Array.isArray(body?.modelIds) ? body.modelIds.filter((id) => typeof id === "string") : [];
+  const models =
+    requestedIds.length >= 2 ? IMAGE_MODELS.filter((m) => requestedIds.includes(m.id)) : IMAGE_MODELS;
+
+  if (models.length < 2) {
+    sendJson(res, 400, { error: "Select at least 2 valid model IDs." });
+    return;
+  }
+
+  const results = await Promise.all(models.map((model) => compareImageModel(model, prompt, settings)));
 
   sendJson(res, 200, { prompt, results });
 }
@@ -253,7 +307,7 @@ async function compareTextModel(model, prompt, temperature) {
     requestBody.temperature = effectiveTemperature;
   }
 
-  if (model.id === "gpt-5.4") {
+  if (model.usesMaxCompletionTokens) {
     requestBody.max_completion_tokens = 300;
   } else {
     requestBody.max_tokens = 300;
@@ -296,7 +350,7 @@ async function compareImageModel(model, prompt, settings = {}) {
     size
   };
 
-  if (model.id !== "gpt-image-1.5") {
+  if (!model.noResponseFormat) {
     requestBody.response_format = "b64_json";
   }
 
@@ -304,7 +358,7 @@ async function compareImageModel(model, prompt, settings = {}) {
     requestBody.style = style;
   }
 
-  if (model.id === "gpt-image-1.5" && model.qualities?.includes(quality)) {
+  if (model.qualities?.includes(quality)) {
     requestBody.quality = quality;
   }
 
@@ -318,9 +372,10 @@ async function compareImageModel(model, prompt, settings = {}) {
     return buildErrorResult(model.id, Date.now() - startedAt, result.error);
   }
 
-  const imageBase64 = result.payload?.data?.[0]?.b64_json;
+  const item = result.payload?.data?.[0];
+  const src = item?.b64_json ? `data:image/png;base64,${item.b64_json}` : item?.url ?? "";
 
-  if (!imageBase64) {
+  if (!src) {
     return buildErrorResult(model.id, Date.now() - startedAt, "No image returned by the API.");
   }
 
@@ -329,7 +384,7 @@ async function compareImageModel(model, prompt, settings = {}) {
     status: "ok",
     durationMs: Date.now() - startedAt,
     size,
-    src: `data:image/png;base64,${imageBase64}`
+    src
   };
 }
 

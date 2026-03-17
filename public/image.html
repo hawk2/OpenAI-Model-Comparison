@@ -42,14 +42,22 @@
 
         <header class="hero">
           <p class="eyebrow">Image Comparison</p>
-          <h1>dall-e-2 vs dall-e-3 vs gpt-image-1.5</h1>
+          <h1>Compare image models side by side</h1>
           <p class="subcopy">
-            Send one prompt to all three models. Configure size, DALL-E 3 style, and
-            gpt-image-1.5 quality to compare results side by side.
+            Send one prompt to every selected model simultaneously. Configure size,
+            DALL-E 3 style, and quality per run.
           </p>
         </header>
 
         <form id="image-form" class="control-panel">
+          <section class="model-picker">
+            <div class="model-picker-header">
+              <p class="eyebrow">Models</p>
+              <p class="model-picker-hint">Select at least 2</p>
+            </div>
+            <div id="image-model-picker" class="model-checkbox-grid"></div>
+          </section>
+
           <div id="prompt-history" class="prompt-history" hidden></div>
 
           <label class="sr-only" for="image-prompt">Image prompt</label>
