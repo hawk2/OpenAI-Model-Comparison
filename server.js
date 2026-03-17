@@ -39,15 +39,17 @@ const TEXT_MODELS = [
 const IMAGE_MODELS = [
   {
     id: "dall-e-2",
-    size: "1024x1024"
+    sizes: { square: "1024x1024", landscape: "1024x1024", portrait: "1024x1024" }
   },
   {
     id: "dall-e-3",
-    size: "1024x1024"
+    sizes: { square: "1024x1024", landscape: "1792x1024", portrait: "1024x1792" },
+    styles: ["vivid", "natural"]
   },
   {
     id: "gpt-image-1.5",
-    size: "1024x1024"
+    sizes: { square: "1024x1024", landscape: "1536x1024", portrait: "1024x1536" },
+    qualities: ["low", "medium", "high"]
   }
 ];
 const MIME_TYPES = {
@@ -74,6 +76,11 @@ createServer(async (req, res) => {
 
     if (req.method === "POST" && url.pathname === "/api/image/compare") {
       await handleImageCompare(req, res);
+      return;
+    }
+
+    if (req.method === "POST" && url.pathname === "/api/image/compare-one") {
+      await handleImageCompareOne(req, res);
       return;
     }
 
@@ -150,12 +157,50 @@ async function handleImageCompare(req, res) {
     return;
   }
 
-  const results = await Promise.all(IMAGE_MODELS.map((model) => compareImageModel(model, prompt)));
+  const settings = extractImageSettings(body);
+  const results = await Promise.all(IMAGE_MODELS.map((model) => compareImageModel(model, prompt, settings)));
 
-  sendJson(res, 200, {
-    prompt,
-    results
-  });
+  sendJson(res, 200, { prompt, results });
+}
+
+async function handleImageCompareOne(req, res) {
+  let body;
+
+  try {
+    body = await readJsonBody(req);
+  } catch {
+    sendJson(res, 400, { error: "Invalid JSON body." });
+    return;
+  }
+
+  const prompt = typeof body?.prompt === "string" ? body.prompt.trim() : "";
+  const modelId = typeof body?.modelId === "string" ? body.modelId.trim() : "";
+  const model = IMAGE_MODELS.find((m) => m.id === modelId);
+
+  if (!prompt) {
+    sendJson(res, 400, { error: "Send a non-empty image prompt." });
+    return;
+  }
+
+  if (!model) {
+    sendJson(res, 400, { error: "Unknown model ID." });
+    return;
+  }
+
+  const settings = extractImageSettings(body);
+  const result = await compareImageModel(model, prompt, settings);
+
+  sendJson(res, 200, { result });
+}
+
+function extractImageSettings(body) {
+  const validSizeKeys = ["square", "landscape", "portrait"];
+  const sizeKey = validSizeKeys.includes(body?.sizeKey) ? body.sizeKey : "square";
+  const validStyles = ["vivid", "natural"];
+  const style = validStyles.includes(body?.style) ? body.style : "vivid";
+  const validQualities = ["low", "medium", "high"];
+  const quality = validQualities.includes(body?.quality) ? body.quality : "medium";
+  return { sizeKey, style, quality };
 }
 
 async function compareTextModel(model, prompt, temperature) {
@@ -239,18 +284,28 @@ async function compareTextModel(model, prompt, temperature) {
   };
 }
 
-async function compareImageModel(model, prompt) {
+async function compareImageModel(model, prompt, settings = {}) {
   const startedAt = Date.now();
+  const { sizeKey = "square", style = "vivid", quality = "medium" } = settings;
+  const size = model.sizes?.[sizeKey] ?? "1024x1024";
 
   const requestBody = {
     model: model.id,
     prompt,
     n: 1,
-    size: model.size
+    size
   };
 
   if (model.id !== "gpt-image-1.5") {
     requestBody.response_format = "b64_json";
+  }
+
+  if (model.id === "dall-e-3" && model.styles?.includes(style)) {
+    requestBody.style = style;
+  }
+
+  if (model.id === "gpt-image-1.5" && model.qualities?.includes(quality)) {
+    requestBody.quality = quality;
   }
 
   const result = await requestOpenAiJsonWithRetry(
@@ -273,7 +328,7 @@ async function compareImageModel(model, prompt) {
     model: model.id,
     status: "ok",
     durationMs: Date.now() - startedAt,
-    size: model.size,
+    size,
     src: `data:image/png;base64,${imageBase64}`
   };
 }

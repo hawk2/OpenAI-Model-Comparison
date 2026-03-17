@@ -24,17 +24,19 @@ export const TEXT_MODELS = [
 export const IMAGE_MODELS = [
   {
     id: "dall-e-2",
-    size: "1024x1024",
+    sizes: { square: "1024x1024", landscape: "1024x1024", portrait: "1024x1024" },
     shutdownDate: "2026-05-12"
   },
   {
     id: "dall-e-3",
-    size: "1024x1024",
+    sizes: { square: "1024x1024", landscape: "1792x1024", portrait: "1024x1792" },
+    styles: ["vivid", "natural"],
     shutdownDate: "2026-05-12"
   },
   {
     id: "gpt-image-1.5",
-    size: "1024x1024"
+    sizes: { square: "1024x1024", landscape: "1536x1024", portrait: "1024x1536" },
+    qualities: ["low", "medium", "high"]
   }
 ];
 
@@ -84,9 +86,15 @@ export async function compareTextInBrowser(prompt, temperature) {
   return { prompt, temperature, results };
 }
 
-export async function compareImagesInBrowser(prompt) {
-  const results = await Promise.all(IMAGE_MODELS.map((model) => compareImageModel(model, prompt)));
+export async function compareImagesInBrowser(prompt, settings = {}) {
+  const results = await Promise.all(IMAGE_MODELS.map((model) => compareImageModel(model, prompt, settings)));
   return { prompt, results };
+}
+
+export async function compareOneImageInBrowser(modelId, prompt, settings = {}) {
+  const model = IMAGE_MODELS.find((m) => m.id === modelId);
+  if (!model) throw new Error(`Unknown model: ${modelId}`);
+  return compareImageModel(model, prompt, settings);
 }
 
 function readApiKey() {
@@ -192,17 +200,28 @@ async function compareTextModel(model, prompt, temperature) {
   };
 }
 
-async function compareImageModel(model, prompt) {
+async function compareImageModel(model, prompt, settings = {}) {
   const startedAt = Date.now();
+  const { sizeKey = "square", style = "vivid", quality = "medium" } = settings;
+  const size = model.sizes?.[sizeKey] ?? "1024x1024";
+
   const requestBody = {
     model: model.id,
     prompt,
     n: 1,
-    size: model.size
+    size
   };
 
   if (model.id !== "gpt-image-1.5") {
     requestBody.response_format = "b64_json";
+  }
+
+  if (model.id === "dall-e-3" && model.styles?.includes(style)) {
+    requestBody.style = style;
+  }
+
+  if (model.id === "gpt-image-1.5" && model.qualities?.includes(quality)) {
+    requestBody.quality = quality;
   }
 
   const result = await openAiJsonWithRetry("https://api.openai.com/v1/images/generations", requestBody, 3);
@@ -221,7 +240,7 @@ async function compareImageModel(model, prompt) {
     model: model.id,
     status: "ok",
     durationMs: Date.now() - startedAt,
-    size: model.size,
+    size,
     src: `data:image/png;base64,${imageBase64}`
   };
 }

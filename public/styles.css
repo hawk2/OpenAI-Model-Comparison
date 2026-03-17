@@ -373,6 +373,196 @@ button:disabled {
   border: 0;
 }
 
+/* ── Settings panel ─────────────────────────────────────────────────────── */
+
+.settings-panel {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+  padding: 16px 18px;
+  border: 1px solid rgba(94, 71, 48, 0.12);
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.5);
+}
+
+.setting-group {
+  display: grid;
+  gap: 8px;
+}
+
+.toggle-row {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.toggle-option {
+  position: relative;
+}
+
+.toggle-option input[type="radio"] {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.toggle-option label {
+  display: inline-block;
+  padding: 7px 13px;
+  border: 1px solid rgba(108, 86, 67, 0.22);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.6);
+  font-size: 0.88rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 120ms ease, border-color 120ms ease, color 120ms ease;
+}
+
+.toggle-option input[type="radio"]:checked + label {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fffdf9;
+}
+
+.toggle-option label:hover {
+  background: rgba(255, 255, 255, 0.9);
+}
+
+/* ── Prompt history ──────────────────────────────────────────────────────── */
+
+.prompt-history {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.prompt-history-label {
+  margin: 0;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.prompt-chip {
+  padding: 6px 12px;
+  border: 1px solid rgba(108, 86, 67, 0.18);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.6);
+  color: var(--text);
+  font: inherit;
+  font-size: 0.84rem;
+  font-weight: 500;
+  cursor: pointer;
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  transition: background 120ms ease, transform 120ms ease;
+}
+
+.prompt-chip:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.9);
+  transform: translateY(-1px);
+}
+
+/* ── Result card action areas ────────────────────────────────────────────── */
+
+.result-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.image-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.image-actions button {
+  flex: 1;
+  font-size: 0.88rem;
+  padding: 10px 14px;
+}
+
+/* ── Session history panel ───────────────────────────────────────────────── */
+
+.history-panel {
+  display: grid;
+  gap: 12px;
+}
+
+.history-entry {
+  padding: 16px;
+  border: 1px solid rgba(94, 71, 48, 0.12);
+  border-radius: var(--radius);
+  background: rgba(255, 248, 239, 0.6);
+  display: grid;
+  gap: 12px;
+}
+
+.history-prompt {
+  margin: 0;
+  font-size: 0.9rem;
+  color: var(--muted);
+  font-style: italic;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.history-thumbs {
+  display: flex;
+  gap: 10px;
+}
+
+.history-thumb-item {
+  flex: 1;
+  display: grid;
+  gap: 5px;
+}
+
+.history-thumb-label {
+  margin: 0;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--muted);
+  text-align: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.history-thumb {
+  width: 100%;
+  aspect-ratio: 1;
+  border-radius: 10px;
+  object-fit: cover;
+  box-shadow: 0 4px 10px rgba(59, 37, 19, 0.1);
+}
+
+.history-thumb-empty {
+  width: 100%;
+  aspect-ratio: 1;
+  border-radius: 10px;
+  background: rgba(108, 86, 67, 0.08);
+  display: grid;
+  place-items: center;
+}
+
+.history-thumb-error {
+  margin: 0;
+  font-size: 0.72rem;
+  color: var(--danger);
+  text-align: center;
+}
+
+/* ── Responsive ──────────────────────────────────────────────────────────── */
+
 @media (max-width: 980px) {
   .choice-grid,
   .result-grid {
@@ -380,6 +570,10 @@ button:disabled {
   }
 
   .api-key-panel {
+    grid-template-columns: 1fr;
+  }
+
+  .settings-panel {
     grid-template-columns: 1fr;
   }
 }
@@ -422,5 +616,11 @@ button:disabled {
 
   .result-head {
     display: grid;
+  }
+
+  .result-actions {
+    align-items: flex-start;
+    flex-direction: row;
+    justify-content: space-between;
   }
 }

@@ -44,12 +44,14 @@
           <p class="eyebrow">Image Comparison</p>
           <h1>dall-e-2 vs dall-e-3 vs gpt-image-1.5</h1>
           <p class="subcopy">
-            One image prompt goes to all three image models. The app requests one
-            `1024x1024` PNG per model and shows the results side by side.
+            Send one prompt to all three models. Configure size, DALL-E 3 style, and
+            gpt-image-1.5 quality to compare results side by side.
           </p>
         </header>
 
         <form id="image-form" class="control-panel">
+          <div id="prompt-history" class="prompt-history" hidden></div>
+
           <label class="sr-only" for="image-prompt">Image prompt</label>
           <textarea
             id="image-prompt"
@@ -59,6 +61,58 @@
             required
           ></textarea>
 
+          <section class="settings-panel">
+            <div class="setting-group">
+              <p class="eyebrow">Size</p>
+              <div class="toggle-row">
+                <span class="toggle-option">
+                  <input type="radio" name="image-size" id="size-square" value="square" checked />
+                  <label for="size-square">Square</label>
+                </span>
+                <span class="toggle-option">
+                  <input type="radio" name="image-size" id="size-landscape" value="landscape" />
+                  <label for="size-landscape">Landscape</label>
+                </span>
+                <span class="toggle-option">
+                  <input type="radio" name="image-size" id="size-portrait" value="portrait" />
+                  <label for="size-portrait">Portrait</label>
+                </span>
+              </div>
+            </div>
+
+            <div class="setting-group">
+              <p class="eyebrow">DALL-E 3 Style</p>
+              <div class="toggle-row">
+                <span class="toggle-option">
+                  <input type="radio" name="dalle3-style" id="style-vivid" value="vivid" checked />
+                  <label for="style-vivid">Vivid</label>
+                </span>
+                <span class="toggle-option">
+                  <input type="radio" name="dalle3-style" id="style-natural" value="natural" />
+                  <label for="style-natural">Natural</label>
+                </span>
+              </div>
+            </div>
+
+            <div class="setting-group">
+              <p class="eyebrow">gpt-image-1.5 Quality</p>
+              <div class="toggle-row">
+                <span class="toggle-option">
+                  <input type="radio" name="gpt-quality" id="quality-low" value="low" />
+                  <label for="quality-low">Low</label>
+                </span>
+                <span class="toggle-option">
+                  <input type="radio" name="gpt-quality" id="quality-medium" value="medium" checked />
+                  <label for="quality-medium">Medium</label>
+                </span>
+                <span class="toggle-option">
+                  <input type="radio" name="gpt-quality" id="quality-high" value="high" />
+                  <label for="quality-high">High</label>
+                </span>
+              </div>
+            </div>
+          </section>
+
           <div class="control-bar">
             <p id="image-status" class="status">Ready.</p>
             <button id="image-submit" type="submit">Compare image models</button>
@@ -66,6 +120,11 @@
         </form>
 
         <section id="image-results" class="result-grid result-grid-image" aria-live="polite"></section>
+
+        <section id="history-panel" class="history-panel" hidden>
+          <p class="eyebrow">Session History</p>
+          <div id="history-list"></div>
+        </section>
       </section>
     </main>
 
@@ -77,12 +136,18 @@
             <h2 class="result-title"></h2>
             <p class="result-notice" hidden></p>
           </div>
-          <p class="result-meta"></p>
+          <div class="result-actions">
+            <p class="result-meta"></p>
+            <button type="button" class="regenerate-button ghost-button" hidden>↺ Retry</button>
+          </div>
         </div>
         <div class="image-frame">
           <img class="result-image" alt="" hidden />
           <p class="result-empty"></p>
-          <button type="button" class="download-button ghost-button" hidden>Download image</button>
+          <div class="image-actions" hidden>
+            <button type="button" class="copy-button ghost-button">Copy</button>
+            <button type="button" class="download-button ghost-button">Download</button>
+          </div>
         </div>
       </article>
     </template>
