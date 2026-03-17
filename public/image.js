@@ -67,6 +67,15 @@ function renderImageResults(results, prompt) {
         image.src = result.src;
         image.alt = `${result.model}: ${prompt}`;
         emptyText.textContent = result.size;
+
+        const downloadBtn = card.querySelector(".download-button");
+        downloadBtn.hidden = false;
+        downloadBtn.addEventListener("click", () => {
+          const link = document.createElement("a");
+          link.href = result.src;
+          link.download = `${result.model}-${Date.now()}.png`;
+          link.click();
+        });
       } else {
         image.hidden = true;
         emptyText.textContent = `Error: ${result.error}`;
